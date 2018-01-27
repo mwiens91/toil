@@ -1258,7 +1258,7 @@ def cacheDirName(workflowID):
 def getDirSizeRecursively(dirPath):
     """
     This method will return the cumulative filesize in bytes of all of the files
-    in the directory and its subdirectories.
+    in the directory and its subdirectories using 'du'.
 
     This method will return a 'subprocess.CalledProcessError' if it is unable to
     access a folder or file because of permissions.  Therefore this method should

@@ -2,24 +2,23 @@
 
 .. _installation-ref:
 
-Installation
-============
+Installation (Local)
+====================
 
-This document describes how to prepare for and install the Toil software. Note that we recommend running all the Toil
-commands inside a Python `virtualenv`_. Instructions for installing and creating a Python virtual environment are
-provided below.
+The following is for use on a local single machine, like your personal laptop.
+
+Toil runs on Python 2.7 and requires the use of a virtualenv.  Using a Python `virtualenv`_ has many advantages and is an
+isolated version of python with it's own pip installs and modifications whose use can be activated or deactivated with a
+simple command.  We recommend using a virtualenv as a good practice when running any python, and if you are not familiar
+with virtualenvs, we highly recommend reading on their use: 
 
 .. _virtualenv: https://virtualenv.pypa.io/en/stable/
 
 .. _venvPrep:
 
-Preparing your Python runtime environment
------------------------------------------
+Setting up a Virtualenv
+-----------------------
 
-Toil currently  supports only Python 2.7.  If you don't satisfy this requirement, consider using anaconda_ to create
-an alternate Python 2.7 installation.
-
-.. _anaconda: https://conda.io/docs/py2or3.html 
 
 Install Python ``virtualenv`` using pip_.
 ::
@@ -32,11 +31,6 @@ Create a virtual environment called ``venv`` in your home directory.
 ::
 
     $ virtualenv ~/venv
-
-Or, if using an `Apache Mesos`_ cluster (see ``mesos`` in the Extras section below).
-::
-
-    $ virtualenv ~/venv --system-site-packages
 
 Activate your virtual environment.
 ::

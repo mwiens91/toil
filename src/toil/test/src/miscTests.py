@@ -73,7 +73,6 @@ class MiscTests(ToilTest):
 
         computedDirectorySize = getDirSizeRecursively(self.testDir)
         totalExpectedSize = sum([x for x in list(files.values()) if isinstance(x, int)])
-        print(computedDirectorySize, totalExpectedSize)
         self.assertGreaterEqual(computedDirectorySize, totalExpectedSize)
 
     @staticmethod

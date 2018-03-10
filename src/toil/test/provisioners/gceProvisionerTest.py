@@ -11,19 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from builtins import next
 from builtins import str
-from builtins import range
 import logging
 import os
 import subprocess
-from abc import abstractmethod
 
 import pytest
 from uuid import uuid4
 
-
-from toil.test import needs_google, integrative, ToilTest, needs_appliance, timeLimit, slow
+from toil.test import needs_google, integrative, needs_appliance, timeLimit, slow
+from toil.test.provisioners import AbstractProvisionerTest
 
 log = logging.getLogger(__name__)
 
@@ -32,22 +29,7 @@ log = logging.getLogger(__name__)
 @integrative
 @needs_appliance
 @slow
-class AbstractGCEAutoscaleTest(ToilTest):
-
-    def sshUtil(self, command):
-        baseCommand = ['toil', 'ssh-cluster', '--insecure', '-p=gce', self.clusterName]
-        callCommand = baseCommand + command
-        subprocess.check_call(callCommand)
-
-    def rsyncUtil(self, src, dest):
-        baseCommand = ['toil', 'rsync-cluster', '--insecure', '-p=gce', self.clusterName]
-        callCommand = baseCommand + [src, dest]
-        subprocess.check_call(callCommand)
-
-    def destroyClusterUtil(self):
-        callCommand = ['toil', 'destroy-cluster', '-p=gce', self.clusterName]
-        subprocess.check_call(callCommand)
-
+class AbstractGCEAutoscaleTest(AbstractProvisionerTest):
     def createClusterUtil(self, args=None):
         if args is None:
             args = []
@@ -59,12 +41,8 @@ class AbstractGCEAutoscaleTest(ToilTest):
         log.info("createClusterUtil: %s" % ''.join(callCommand))
         subprocess.check_call(callCommand)
 
-    def cleanJobStoreUtil(self):
-        callCommand = ['toil', 'clean', self.jobStore]
-        subprocess.check_call(callCommand)
-
     def __init__(self, methodName):
-        super(AbstractGCEAutoscaleTest, self).__init__(methodName=methodName)
+        super(AbstractGCEAutoscaleTest, self).__init__(methodName=methodName, provisionerName="gce", provisioner=None)
         # TODO: add TOIL_GOOGLE_KEYNAME to needs_google or ssh with SA account
         self.keyName = os.getenv('TOIL_GOOGLE_KEYNAME')
         # TODO: remove this when switching to google jobstore
@@ -72,47 +50,11 @@ class AbstractGCEAutoscaleTest(ToilTest):
         # TODO: get this from SA account or add an environment variable
         self.googleZone = 'us-west1-a'
 
-
         self.leaderInstanceType = 'n1-standard-1'
         self.instanceTypes = ["n1-standard-2"]
         self.numWorkers = ['2']
         self.numSamples = 2
         self.spotBid = 0.15
-
-    def setUp(self):
-        super(AbstractGCEAutoscaleTest, self).setUp()
-
-    def tearDown(self):
-        super(AbstractGCEAutoscaleTest, self).tearDown()
-        self.destroyClusterUtil()
-        self.cleanJobStoreUtil()
-
-    #def getMatchingRoles(self, clusterName):
-    #    ctx = AWSProvisioner._buildContext(clusterName)
-    #    roles = list(ctx.local_roles())
-    #    return roles
-
-    def launchCluster(self):
-        self.createClusterUtil()
-
-    @abstractmethod
-    def _getScript(self):
-        """
-        Download the test script needed by the inheriting unit test class.
-        """
-        raise NotImplementedError()
-
-
-    @abstractmethod
-    def _runScript(self, toilOptions):
-        """
-        Modify the provided Toil options to suit the test Toil script, then run the script with
-        those arguments.
-
-        :param toilOptions: List of Toil command line arguments. This list may need to be
-               modified to suit the test script's requirements.
-        """
-        raise NotImplementedError()
 
     def _test(self, preemptableJobs=False):
         """
@@ -156,20 +98,18 @@ class AbstractGCEAutoscaleTest(ToilTest):
 
         self._runScript(toilOptions)
 
-        #TODO: Does this just check if it is still running?
-        #assert len(self.getMatchingRoles(self.clusterName)) == 1
+        # TODO: Does this just check if it is still running?
+        # assert len(self.getMatchingRoles(self.clusterName)) == 1
 
         checkStatsCommand = ['/home/venv/bin/python', '-c',
                              'import json; import os; '
                              'json.load(open("/home/" + [f for f in os.listdir("/home/") '
-                                                   'if f.endswith(".json")].pop()))'
+                             'if f.endswith(".json")].pop()))'
                              ]
 
         self.sshUtil(checkStatsCommand)
 
-
         # TODO: Add a check to make sure everything is cleaned up.
-
 
 
 @pytest.mark.timeout(1200)
@@ -318,7 +258,6 @@ class GCERestartTest(AbstractGCEAutoscaleTest):
     def _getScript(self):
         self.rsyncUtil(os.path.join(self._projectRootPath(), 'src/toil/test/provisioners/restartScript.py'),
                         ':'+self.scriptName)
-
 
     def _runScript(self, toilOptions):
         # clean = onSuccess

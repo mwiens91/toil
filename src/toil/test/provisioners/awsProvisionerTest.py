@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from abc import abstractmethod
 from builtins import next
 from builtins import str
 from builtins import range
@@ -20,14 +19,15 @@ from inspect import getsource
 import os
 from textwrap import dedent
 import time
+from toil import subprocess
 from uuid import uuid4
 
 import pytest
 from toil.lib.ec2 import wait_instances_running
 
 from toil.provisioners.aws.awsProvisioner import AWSProvisioner
-from toil import subprocess
-from toil.test import needs_aws, integrative, ToilTest, needs_appliance, timeLimit, slow
+from toil.test import needs_aws, integrative, needs_appliance, timeLimit, slow
+from toil.test.provisioners import AbstractProvisionerTest
 
 log = logging.getLogger(__name__)
 
@@ -36,36 +36,11 @@ log = logging.getLogger(__name__)
 @integrative
 @needs_appliance
 @slow
-class AbstractAWSAutoscaleTest(ToilTest):
-
-    def sshUtil(self, command):
-        baseCommand = ['toil', 'ssh-cluster', '--insecure', '-p=aws', self.clusterName]
-        callCommand = baseCommand + command
-        subprocess.check_call(callCommand)
-
-    def rsyncUtil(self, src, dest):
-        baseCommand = ['toil', 'rsync-cluster', '--insecure', '-p=aws', self.clusterName]
-        callCommand = baseCommand + [src, dest]
-        subprocess.check_call(callCommand)
-
-    def destroyClusterUtil(self):
-        callCommand = ['toil', 'destroy-cluster', '-p=aws', self.clusterName]
-        subprocess.check_call(callCommand)
-
-    def createClusterUtil(self, args=None):
-        if args is None:
-            args = []
-        callCommand = ['toil', 'launch-cluster', '-p=aws', '--keyPairName=%s' % self.keyName,
-                       '--leaderNodeType=%s' % self.leaderInstanceType, self.clusterName]
-        callCommand = callCommand + args if args else callCommand
-        subprocess.check_call(callCommand)
-
-    def cleanJobStoreUtil(self):
-        callCommand = ['toil', 'clean', self.jobStore]
-        subprocess.check_call(callCommand)
-
+class AbstractAWSAutoscaleTest(AbstractProvisionerTest):
     def __init__(self, methodName):
-        super(AbstractAWSAutoscaleTest, self).__init__(methodName=methodName)
+        from toil.provisioners.aws.awsProvisioner import AWSProvisioner
+        provisionerName = "aws"
+        super(AbstractAWSAutoscaleTest, self).__init__(methodName=methodName, provisioner=AWSProvisioner, provisionerName=provisionerName)
         self.keyName = os.getenv('TOIL_AWS_KEYNAME')
         self.leaderInstanceType = 't2.medium'
         self.instanceTypes = ["m3.large"]
@@ -74,22 +49,10 @@ class AbstractAWSAutoscaleTest(ToilTest):
         self.numSamples = 2
         self.spotBid = 0.15
 
-    def setUp(self):
-        super(AbstractAWSAutoscaleTest, self).setUp()
-
-    def tearDown(self):
-        super(AbstractAWSAutoscaleTest, self).tearDown()
-        self.destroyClusterUtil()
-        self.cleanJobStoreUtil()
-
     def getMatchingRoles(self, clusterName):
-        from toil.provisioners.aws.awsProvisioner import AWSProvisioner
         ctx = AWSProvisioner._buildContext(clusterName)
         roles = list(ctx.local_roles())
         return roles
-
-    def launchCluster(self):
-        self.createClusterUtil()
 
     def getRootVolID(self):
         from boto.ec2.blockdevicemapping import BlockDeviceType
@@ -97,36 +60,18 @@ class AbstractAWSAutoscaleTest(ToilTest):
         assert isinstance(rootBlockDevice, BlockDeviceType)
         return rootBlockDevice.volume_id
 
-    @abstractmethod
-    def _getScript(self):
-        """
-        Download the test script needed by the inheriting unit test class.
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def _runScript(self, toilOptions):
-        """
-        Modify the provided Toil options to suit the test Toil script, then run the script with
-        those arguments.
-
-        :param toilOptions: List of Toil command line arguments. This list may need to be
-               modified to suit the test script's requirements.
-        """
-        raise NotImplementedError()
-
     def _test(self, preemptableJobs=False):
         """
         Does the work of the testing. Many features' test are thrown in here is no particular
         order
         """
-        from toil.provisioners.aws.awsProvisioner import AWSProvisioner
         self.launchCluster()
         # get the leader so we know the IP address - we don't need to wait since create cluster
         # already insures the leader is running
-        self.leader = AWSProvisioner._getLeader(wait=False, clusterName=self.clusterName)
-        ctx = AWSProvisioner._buildContext(self.clusterName)
+        self.leader = self.provisioner._getLeader(wait=False, clusterName=self.clusterName)
+        ctx = self.provisioner._buildContext(self.clusterName)
 
+        # Ensure IAM role is created (rel. #1280)
         assert len(self.getMatchingRoles(self.clusterName)) == 1
         # --never-download prevents silent upgrades to pip, wheel and setuptools
         venv_command = ['virtualenv', '--system-site-packages', '--never-download',
@@ -186,6 +131,7 @@ class AbstractAWSAutoscaleTest(ToilTest):
         else:
             self.fail('Volume with ID %s was not cleaned up properly' % volumeID)
 
+        # Make sure that no IAM roles are leaked (rel. #1280)
         assert len(self.getMatchingRoles(self.clusterName)) == 0
 
 
@@ -315,7 +261,7 @@ class AWSAutoscaleTestMultipleNodeTypes(AbstractAWSAutoscaleTest):
     @needs_aws
     def testAutoScale(self):
         self.instanceTypes = ["t2.small", "m3.large"]
-        self.numWorkers = ['2','1']
+        self.numWorkers = ['2', '1']
         self._test()
 
 @pytest.mark.timeout(1200)

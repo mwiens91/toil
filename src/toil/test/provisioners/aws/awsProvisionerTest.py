@@ -11,29 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from abc import abstractmethod
 from builtins import next
 from builtins import str
 from builtins import range
 import logging
-import os
-from toil import subprocess
-from abc import abstractmethod
 from inspect import getsource
+import os
 from textwrap import dedent
-
 import time
-
-import pytest
-from boto.ec2.blockdevicemapping import BlockDeviceType
-from boto.exception import EC2ResponseError
-from toil.lib.ec2 import wait_instances_running
-
-
-from toil.provisioners.aws.awsProvisioner import AWSProvisioner
-
 from uuid import uuid4
 
+import pytest
+from toil.lib.ec2 import wait_instances_running
 
+from toil.provisioners.aws.awsProvisioner import AWSProvisioner
+from toil import subprocess
 from toil.test import needs_aws, integrative, ToilTest, needs_appliance, timeLimit, slow
 
 log = logging.getLogger(__name__)
@@ -111,7 +104,6 @@ class AbstractAWSAutoscaleTest(ToilTest):
         """
         raise NotImplementedError()
 
-
     @abstractmethod
     def _runScript(self, toilOptions):
         """
@@ -171,8 +163,7 @@ class AbstractAWSAutoscaleTest(ToilTest):
         checkStatsCommand = ['/home/venv/bin/python', '-c',
                              'import json; import os; '
                              'json.load(open("/home/" + [f for f in os.listdir("/home/") '
-                                                   'if f.endswith(".json")].pop()))'
-                             ]
+                             'if f.endswith(".json")].pop()))']
 
         self.sshUtil(checkStatsCommand)
 
@@ -291,6 +282,7 @@ class AWSStaticAutoscaleTest(AWSAutoscaleTest):
         runCommand.extend(toilOptions)
         self.sshUtil(runCommand)
 
+
 @pytest.mark.timeout(1200)
 class AWSAutoscaleTestMultipleNodeTypes(AbstractAWSAutoscaleTest):
 
@@ -311,7 +303,7 @@ class AWSAutoscaleTestMultipleNodeTypes(AbstractAWSAutoscaleTest):
         os.unlink(sseKeyFile)
 
     def _runScript(self, toilOptions):
-        #Set memory requirements so that sort jobs can be run
+        # Set memory requirements so that sort jobs can be run
         # on small instances, but merge jobs must be run on large
         # instances
         runCommand = ['/home/venv/bin/python', '/home/sort.py', '--fileToSort=/home/s3am/bin/asadmin', '--sortMemory=0.6G', '--mergeMemory=3.0G']
@@ -386,6 +378,7 @@ class AWSRestartTest(AbstractAWSAutoscaleTest):
     def testAutoScaledCluster(self):
         self._test()
 
+
 @pytest.mark.timeout(1200)
 class PreemptableDeficitCompensationTest(AbstractAWSAutoscaleTest):
 
@@ -395,8 +388,8 @@ class PreemptableDeficitCompensationTest(AbstractAWSAutoscaleTest):
 
     def setUp(self):
         super(PreemptableDeficitCompensationTest, self).setUp()
-        self.instanceTypes = ['m3.large:0.01', "m3.large"] # instance needs to be available on the spot market
-        self.numWorkers = ['1','1']
+        self.instanceTypes = ['m3.large:0.01', "m3.large"]  # instance needs to be available on the spot market
+        self.numWorkers = ['1', '1']
         self.jobStore = 'aws:%s:deficit-%s' % (self.awsRegion(), uuid4())
 
     def test(self):

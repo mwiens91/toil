@@ -27,10 +27,7 @@ import uuid
 
 # Python 3 compatibility imports
 from six.moves.queue import Empty, Queue
-from six.moves import xrange
 from six import iteritems
-
-from bd2k.util.objects import InnerClass
 
 from toil.job import JobNode, Job
 
@@ -102,7 +99,7 @@ class ClusterScalerTest(ToilTest):
         clusterScaler = ClusterScaler(mock, mock, config)
         clusterScaler.start()
         try:
-            # Add 100 jobs to complete 
+            # Add 100 jobs to complete
             logger.info("Creating test jobs")
             list(map(lambda x: mock.addJob(jobShape=jobShape), list(range(numJobs))))
             list(map(lambda x: mock.addJob(jobShape=jobShape, preemptable=True), list(range(numPreemptableJobs))))
@@ -345,7 +342,7 @@ class MockBatchSystemAndProvisioner(AbstractScalableBatchSystem, AbstractProvisi
     def getProvisionedWorkers(self, nodeType=None, preemptable=None):
         """
         Returns a list of Node objects, each representing a worker node in the cluster
-        
+
         :param preemptable: If True only return preemptable nodes else return non-preemptable nodes
         :return: list of Node
         """

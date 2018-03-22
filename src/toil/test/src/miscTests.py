@@ -14,16 +14,14 @@
 
 from __future__ import absolute_import, print_function
 from builtins import range
-from toil.test import ToilTest, slow
 from uuid import uuid4
-
-import math
+import sys
 import os
 import random
 import tempfile
-
-# Python 3 compatibility imports
-from six.moves import xrange
+from toil import subprocess
+from toil.job import Job
+from toil.test import ToilTest, slow
 
 class MiscTests(ToilTest):
     """
@@ -74,6 +72,18 @@ class MiscTests(ToilTest):
         computedDirectorySize = getDirSizeRecursively(self.testDir)
         totalExpectedSize = sum([x for x in list(files.values()) if isinstance(x, int)])
         self.assertGreaterEqual(computedDirectorySize, totalExpectedSize)
+
+    def testUnicodeSupport(self):
+        # We want to get a unicode character to stdout but we can't print it directly because of
+        # Python encoding issues. To work around this we print in a separate Python process. See
+        # http://stackoverflow.com/questions/492483/setting-the-correct-encoding-when-piping-stdout-in-python
+        def printUnicodeCharacter():
+            subprocess.check_call([sys.executable, '-c', "print '\\xc3\\xbc'"])
+
+        options = Job.Runner.getDefaultOptions(self._getTestJobStorePath())
+        options.clean = 'always'
+        Job.Runner.startToil(Job.wrapFn(printUnicodeCharacter), options)
+
 
     @staticmethod
     def _getRandomName():

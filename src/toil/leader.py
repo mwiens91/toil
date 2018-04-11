@@ -703,6 +703,14 @@ class Leader:
         if wallTime is not None and self.clusterScaler is not None:
             self.clusterScaler.addCompletedJob(jobNode, wallTime)
         if self.jobStore.exists(jobStoreID):
+            # When running mesos with an NFS-based fileJobStore there is a race condition where the
+            # slave deletes the job directory but this change has not been registered by other
+            # clients by the NFS server. We assume the master will sync with the server in under 1
+            # second and wait that long before continuing.
+            time.sleep(1)
+            if not self.jobStore.exists(jobStoreID):
+                processRemovedJob(jobNode)
+                return
             logger.debug("Job %s continues to exist (i.e. has more to do)", jobNode)
             try:
                 jobGraph = self.jobStore.load(jobStoreID)

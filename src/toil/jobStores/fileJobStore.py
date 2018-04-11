@@ -79,8 +79,11 @@ class FileJobStore(AbstractJobStore):
         super(FileJobStore, self).resume()
 
     def destroy(self):
+        # Wait for the NFS clients to sync on all slaves
+        import time
+        time.sleep(1)
         if os.path.exists(self.jobStoreDir):
-            shutil.rmtree(self.jobStoreDir)
+            shutil.rmtree(self.jobStoreDir, ignore_errors=True)
 
     ##########################################
     # The following methods deal with creating/loading/updating/writing/checking for the

@@ -378,7 +378,7 @@ def toilStageFiles(fileStore, cwljob, outdir, index, existing, export, destBucke
                 unstageTargetPath = p.target[len(outdir):]
                 destUrl = '/'.join(s.strip('/') for s in [destBucket, unstageTargetPath])
 
-                fileStore.exportFile[p.resolved[7:], destUrl]
+                fileStore.exportFile(p.resolved[7:], destUrl)
 
             continue
 

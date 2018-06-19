@@ -1075,7 +1075,7 @@ def main(args=None, stdout=sys.stdout):
             outdir,
             fileindex,
             existing,
-            export=True
+            export=True,
             destBucket=options.destBucket)
 
         visit_class(outobj, ("File",), functools.partial(compute_checksums, cwltool.stdfsaccess.StdFsAccess("")))
